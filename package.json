@@ -1,0 +1,22 @@
+{
+  "name": "bot-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node src/api/index.js",
+    "lint": "eslint .",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "discord-interactions": "^4.0.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
