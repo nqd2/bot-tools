@@ -1,11 +1,12 @@
 const { Telegraf } = require('telegraf');
+const config = require('../config/env.config');
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(config.telegram.botToken);
 
-bot.command('getID', (ctx) => {
+bot.command('getid', (ctx) => {
   const chatId = ctx.chat.id;
   const topicId = ctx.message?.message_thread_id || 'N/A';
-  ctx.reply(`Chat ID: ${chatId}\nTopic ID: ${topicId}`);
+  ctx.reply(`Chat_ID: ${chatId}\nTopic_ID: ${topicId}`);
 });
 
 const processUpdate = async (body) => {

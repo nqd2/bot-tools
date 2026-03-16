@@ -12,6 +12,8 @@ module.exports = [
         module: 'readonly',
         process: 'readonly',
         require: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     rules: {

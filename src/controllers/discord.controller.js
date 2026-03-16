@@ -4,6 +4,7 @@ const {
   verifyKey,
 } = require('discord-interactions');
 const { handleInteraction } = require('../services/discord.service');
+const config = require('../config/env.config');
 
 async function handleDiscordWebhook(req, res) {
   const signature = req.headers['x-signature-ed25519'];
@@ -14,7 +15,7 @@ async function handleDiscordWebhook(req, res) {
     rawBody,
     signature,
     timestamp,
-    process.env.DISCORD_PUBLIC_KEY,
+    config.discord.publicKey,
   );
 
   if (!isValidRequest) {
