@@ -1,6 +1,6 @@
-const { handleTelegramWebhook } = require('../controllers/telegram.controller');
+const app = require('../app');
 
-module.exports = async (req, res) => {
-  await handleTelegramWebhook(req, res);
+module.exports = (req, res) => {
+  app(req, res);
 };
 

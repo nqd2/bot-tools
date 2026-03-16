@@ -3,15 +3,10 @@
     {
       "src": "src/api/index.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "src/api/discord.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    { "src": "/api", "dest": "src/api/index.js" },
-    { "src": "/api/discord", "dest": "src/api/discord.js" },
-    { "src": "/(.*)", "dest": "src/api/index.js" }
+    { "src": "/api/telegram", "dest": "src/api/index.js" },
+    { "src": "/api/discord", "dest": "src/api/index.js" }
   ]
 }
