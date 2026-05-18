@@ -13,57 +13,171 @@ function isAdmin(userId) {
   return admins.includes(String(userId));
 }
 
-bot.command('getid', (ctx) => {
+function replyOptions(ctx, extra = {}) {
+  const options = { ...extra };
+  const threadId = ctx.message?.message_thread_id;
+  if (threadId) {
+    options.message_thread_id = threadId;
+  }
+  return options;
+}
+
+async function replyInContext(ctx, text, extra = {}) {
+  return ctx.reply(text, replyOptions(ctx, extra));
+}
+
+function parseCommandArgs(ctx) {
+  const text = ctx.message?.text || '';
+  const parts = text.trim().split(/\s+/).slice(1);
+  return parts.map((part) => part.split('@')[0].toLowerCase()).filter(Boolean);
+}
+
+function formatIdReply(ctx) {
   const chatId = ctx.chat.id;
-  const topicId = ctx.message?.message_thread_id || 'N/A';
-  ctx.reply(`Chat_ID: ${chatId}\nTopic_ID: ${topicId}`);
-});
+  const userId = ctx.from?.id ?? 'N/A';
+  const topicId = ctx.message?.message_thread_id;
+  const chatType = ctx.chat.type;
 
-bot.command('sethome', async (ctx) => {
-  if (!isAdmin(ctx.from?.id)) {
-    return ctx.reply('You are not allowed to use /sethome.');
+  const lines = [
+    `Chat_ID: ${chatId}`,
+    `User_ID: ${userId}`,
+    `Chat type: ${chatType}`,
+  ];
+
+  if (topicId) {
+    lines.push(`Topic_ID: ${topicId}`);
+  } else {
+    lines.push('Topic_ID: N/A');
   }
 
-  const args = (ctx.message?.text || '').split(/\s+/).slice(1);
-
-  if (args.length === 0 || args[0] === 'list') {
-    const homes = await homesService.listHomes();
-    return ctx.reply(homesService.formatHomesList(homes), { parse_mode: 'HTML' });
-  }
-
-  if (args[0] === 'clear') {
-    const feature = args[1];
-    if (!feature || !homesService.isValidFeature(feature)) {
-      return ctx.reply(`Usage: /sethome clear <feature>\nFeatures: ${Object.keys(FEATURES).join(', ')}`);
-    }
-    await homesService.clearHome(feature);
-    return ctx.reply(`Cleared home for <code>${feature}</code>.`, { parse_mode: 'HTML' });
-  }
-
-  const feature = args[0];
-  if (!homesService.isValidFeature(feature)) {
-    return ctx.reply(
-      `Unknown feature <code>${feature}</code>.\nAvailable: ${Object.keys(FEATURES).join(', ')}`,
-      { parse_mode: 'HTML' },
+  if (chatType === 'private') {
+    lines.push(
+      '',
+      'Chat riêng: Chat_ID = ID cuộc trò chuyện với bot.',
+      'Dùng User_ID nếu cần whitelist BOT_ADMIN_IDS.',
+    );
+  } else {
+    lines.push(
+      '',
+      'Group có nhiều bot: dùng /getid@ten_bot',
+      'Forum topic: gửi lệnh trong topic cần nhận tin.',
     );
   }
 
-  const chatId = ctx.chat.id;
-  const topicId = ctx.message?.message_thread_id ?? null;
-  const title = ctx.chat.title || ctx.chat.username || ctx.chat.first_name || null;
+  return lines.join('\n');
+}
 
-  await homesService.setHome(feature, { chatId, topicId, title });
+function formatStartReply(ctx) {
+  const botUsername = ctx.botInfo?.username;
+  const suffix = botUsername ? `@${botUsername}` : '';
+  const inGroup = ctx.chat.type !== 'private';
 
-  const topicLabel = topicId ?? '(main)';
-  return ctx.reply(
-    [
-      `✅ <b>${FEATURES[feature].label}</b>`,
-      `Feature: <code>${feature}</code>`,
-      `Chat: <code>${chatId}</code>`,
-      `Topic: <code>${topicLabel}</code>`,
-    ].join('\n'),
-    { parse_mode: 'HTML' },
-  );
+  return [
+    '👋 <b>bot-tools</b>',
+    '',
+    `<b>/getid${suffix}</b> — Chat ID, User ID, Topic ID`,
+    `<b>/sethome${suffix} openrouter</b> — nhận trace OpenRouter tại chat/topic này`,
+    `<b>/sethome${suffix} list</b> — xem cấu hình đã lưu`,
+    '',
+    inGroup
+      ? '⚠️ Group nhiều bot: thêm @tên_bot sau lệnh (như trên).'
+      : '💬 Chat riêng: gõ / rồi chọn lệnh, hoặc gõ trực tiếp /getid',
+  ].join('\n');
+}
+
+bot.catch(async (error, ctx) => {
+  console.error('Telegram bot error:', error);
+  try {
+    await replyInContext(
+      ctx,
+      `⚠️ Lỗi: ${error.message || 'unknown error'}`,
+    );
+  } catch {
+    // cannot reply
+  }
+});
+
+bot.start(async (ctx) => {
+  try {
+    await replyInContext(ctx, formatStartReply(ctx), { parse_mode: 'HTML' });
+  } catch (error) {
+    console.error('/start error:', error);
+    await replyInContext(ctx, `⚠️ Lỗi: ${error.message}`);
+  }
+});
+
+bot.command('getid', async (ctx) => {
+  try {
+    await replyInContext(ctx, formatIdReply(ctx));
+  } catch (error) {
+    console.error('/getid error:', error);
+    await replyInContext(ctx, `⚠️ Lỗi: ${error.message}`);
+  }
+});
+
+bot.command('sethome', async (ctx) => {
+  try {
+    if (!isAdmin(ctx.from?.id)) {
+      return replyInContext(ctx, 'You are not allowed to use /sethome.');
+    }
+
+    const args = parseCommandArgs(ctx);
+
+    if (args.length === 0 || args[0] === 'list') {
+      const homes = await homesService.listHomes();
+      return replyInContext(ctx, homesService.formatHomesList(homes), {
+        parse_mode: 'HTML',
+      });
+    }
+
+    if (args[0] === 'clear') {
+      const feature = args[1];
+      if (!feature || !homesService.isValidFeature(feature)) {
+        return replyInContext(
+          ctx,
+          `Usage: /sethome clear <feature>\nFeatures: ${Object.keys(FEATURES).join(', ')}`,
+        );
+      }
+      await homesService.clearHome(feature);
+      return replyInContext(ctx, `Cleared home for <code>${feature}</code>.`, {
+        parse_mode: 'HTML',
+      });
+    }
+
+    const feature = args[0];
+    if (!homesService.isValidFeature(feature)) {
+      return replyInContext(
+        ctx,
+        `Unknown feature <code>${feature}</code>.\nAvailable: ${Object.keys(FEATURES).join(', ')}`,
+        { parse_mode: 'HTML' },
+      );
+    }
+
+    const chatId = ctx.chat.id;
+    const topicId = ctx.message?.message_thread_id ?? null;
+    const title =
+      ctx.chat.title || ctx.chat.username || ctx.chat.first_name || null;
+
+    await homesService.setHome(feature, { chatId, topicId, title });
+
+    const topicLabel = topicId ?? '(main)';
+    return replyInContext(
+      ctx,
+      [
+        `✅ <b>${FEATURES[feature].label}</b>`,
+        `Feature: <code>${feature}</code>`,
+        `Chat: <code>${chatId}</code>`,
+        `Topic: <code>${topicLabel}</code>`,
+      ].join('\n'),
+      { parse_mode: 'HTML' },
+    );
+  } catch (error) {
+    console.error('/sethome error:', error);
+    await replyInContext(
+      ctx,
+      `⚠️ Không lưu được cấu hình.\n${error.message}`,
+    );
+  }
 });
 
 const processUpdate = async (body) => {

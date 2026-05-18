@@ -77,6 +77,12 @@ async function writeAll(data) {
     return;
   }
 
+  if (process.env.VERCEL) {
+    throw new Error(
+      'Vercel cần Blob store (BLOB_READ_WRITE_TOKEN). Project Settings → Storage → Create Blob → redeploy.',
+    );
+  }
+
   await writeToFile(data);
 }
 

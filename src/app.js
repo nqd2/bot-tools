@@ -17,8 +17,9 @@ app.get('/', (_req, res) => {
       openrouter: '/api/openrouter',
     },
     commands: {
-      getid: 'Show chat/topic ID',
-      sethome: 'Set notification target per feature (e.g. /sethome openrouter)',
+      start: 'Help / command list',
+      getid: 'Chat ID, User ID, Topic ID',
+      sethome: 'Set notification target (e.g. /sethome openrouter)',
     },
   });
 });

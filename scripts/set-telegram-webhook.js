@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 require('dotenv').config();
 const { setTelegramWebhook } = require('../src/setup-webhook');
+const { setTelegramCommands } = require('../src/setup-commands');
 
 const baseUrl = process.env.WEBHOOK_BASE_URL || process.env.VERCEL_URL;
 
@@ -13,6 +14,9 @@ if (!baseUrl) {
 
 const normalized = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
 
-setTelegramWebhook(normalized).then((ok) => {
-  process.exit(ok ? 0 : 1);
+Promise.all([
+  setTelegramWebhook(normalized),
+  setTelegramCommands(),
+]).then(([webhookOk, commandsOk]) => {
+  process.exit(webhookOk && commandsOk ? 0 : 1);
 });
