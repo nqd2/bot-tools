@@ -17,6 +17,8 @@ const config = {
   },
   openrouter: {
     webhookSecret: process.env.OPENROUTER_WEBHOOK_SECRET || '',
+    includeContent: process.env.OPENROUTER_INCLUDE_CONTENT !== 'false',
+    maxContentChars: Number(process.env.OPENROUTER_MAX_CONTENT_CHARS) || 1200,
   },
   discord: {
     token: process.env.DISCORD_TOKEN || '',

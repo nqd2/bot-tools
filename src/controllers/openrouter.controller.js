@@ -26,6 +26,22 @@ function isAuthorized(req) {
 }
 
 async function handleOpenRouterWebhook(req, res) {
+  const bodyKeys = req.body && typeof req.body === 'object'
+    ? Object.keys(req.body)
+    : [];
+
+  logsService.writeLog({
+    level: 'debug',
+    source: 'openrouter',
+    event: 'webhook_hit',
+    message: 'OpenRouter webhook request',
+    meta: {
+      testConnection: req.headers['x-test-connection'] === 'true',
+      bodyKeys,
+      hasResourceSpans: Boolean(req.body?.resourceSpans?.length),
+    },
+  });
+
   if (req.headers['x-test-connection'] === 'true') {
     logsService.writeLog({
       level: 'info',
@@ -69,13 +85,17 @@ async function handleOpenRouterWebhook(req, res) {
 
   try {
     const result = await openrouterService.processTracePayload(req.body);
+
     logsService.writeLog({
-      level: 'info',
+      level: result.spansProcessed > 0 ? 'info' : 'warn',
       source: 'openrouter',
-      event: 'trace_received',
-      message: `Processed ${result.spansProcessed} span(s)`,
+      event: result.spansProcessed > 0 ? 'trace_received' : 'trace_empty',
+      message: result.spansProcessed > 0
+        ? `Sent ${result.spansProcessed} Telegram notification(s)`
+        : 'Webhook received but no spans parsed',
       meta: result,
     });
+
     return res.json({ status: 'received', ...result });
   } catch (error) {
     console.error('OpenRouter webhook error:', error);
