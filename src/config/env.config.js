@@ -11,6 +11,10 @@ const config = {
       .map((id) => id.trim())
       .filter(Boolean),
   },
+  mongodb: {
+    uri: process.env.MONGODB_URI || '',
+    dbName: process.env.MONGODB_DB_NAME || 'bot_tools',
+  },
   openrouter: {
     webhookSecret: process.env.OPENROUTER_WEBHOOK_SECRET || '',
   },

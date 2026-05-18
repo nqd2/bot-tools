@@ -1,31 +1,43 @@
 const { FEATURES, isValidFeature } = require('../config/features');
 const homesStorage = require('../storage/homes.storage');
+const logsService = require('./logs.service');
 
-async function setHome(feature, { chatId, topicId, title }) {
-  const all = await homesStorage.readAll();
-  all[feature] = {
-    chatId,
-    topicId: topicId ?? null,
-    title: title ?? null,
-    updatedAt: new Date().toISOString(),
-  };
-  await homesStorage.writeAll(all);
-  return all[feature];
+async function setHome(feature, { chatId, topicId, title }, context = {}) {
+  const home = await homesStorage.upsertHome(feature, { chatId, topicId, title });
+
+  await logsService.writeLog({
+    level: 'info',
+    source: 'telegram',
+    event: 'sethome',
+    message: `Set home for ${feature}`,
+    meta: { feature, home },
+    userId: context.userId ?? null,
+    chatId: context.chatId ?? chatId,
+  });
+
+  return home;
 }
 
 async function getHome(feature) {
-  const all = await homesStorage.readAll();
-  return all[feature] || null;
+  return homesStorage.getHome(feature);
 }
 
 async function listHomes() {
-  return homesStorage.readAll();
+  return homesStorage.getAllHomes();
 }
 
-async function clearHome(feature) {
-  const all = await homesStorage.readAll();
-  delete all[feature];
-  await homesStorage.writeAll(all);
+async function clearHome(feature, context = {}) {
+  await homesStorage.deleteHome(feature);
+
+  await logsService.writeLog({
+    level: 'info',
+    source: 'telegram',
+    event: 'sethome_clear',
+    message: `Cleared home for ${feature}`,
+    meta: { feature },
+    userId: context.userId ?? null,
+    chatId: context.chatId ?? null,
+  });
 }
 
 function formatHomesList(homes) {
@@ -51,7 +63,7 @@ function formatHomesList(homes) {
     '<b>Usage</b>',
     '<code>/sethome &lt;feature&gt;</code> — set in current chat/topic',
     '<code>/sethome clear &lt;feature&gt;</code> — remove',
-    `<code>/sethome list</code> — this list`,
+    '<code>/sethome list</code> — this list',
     '',
     `Features: ${Object.keys(FEATURES).join(', ')}`,
   );

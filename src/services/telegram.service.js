@@ -2,6 +2,7 @@ const { Telegraf } = require('telegraf');
 const config = require('../config/env.config');
 const { FEATURES } = require('../config/features');
 const homesService = require('./homes.service');
+const logsService = require('./logs.service');
 
 const bot = new Telegraf(config.telegram.botToken);
 
@@ -85,8 +86,23 @@ function formatStartReply(ctx) {
   ].join('\n');
 }
 
+function logContext(ctx) {
+  return {
+    userId: ctx.from?.id ?? null,
+    chatId: ctx.chat?.id ?? null,
+  };
+}
+
 bot.catch(async (error, ctx) => {
   console.error('Telegram bot error:', error);
+  await logsService.writeLog({
+    level: 'error',
+    source: 'telegram',
+    event: 'bot_error',
+    message: error.message,
+    meta: { stack: error.stack },
+    ...logContext(ctx),
+  });
   try {
     await replyInContext(
       ctx,
@@ -99,6 +115,13 @@ bot.catch(async (error, ctx) => {
 
 bot.start(async (ctx) => {
   try {
+    await logsService.writeLog({
+      level: 'info',
+      source: 'telegram',
+      event: 'command_start',
+      message: '/start',
+      ...logContext(ctx),
+    });
     await replyInContext(ctx, formatStartReply(ctx), { parse_mode: 'HTML' });
   } catch (error) {
     console.error('/start error:', error);
@@ -108,7 +131,15 @@ bot.start(async (ctx) => {
 
 bot.command('getid', async (ctx) => {
   try {
-    await replyInContext(ctx, formatIdReply(ctx));
+    const reply = formatIdReply(ctx);
+    await logsService.writeLog({
+      level: 'info',
+      source: 'telegram',
+      event: 'command_getid',
+      message: reply,
+      ...logContext(ctx),
+    });
+    await replyInContext(ctx, reply);
   } catch (error) {
     console.error('/getid error:', error);
     await replyInContext(ctx, `⚠️ Lỗi: ${error.message}`);
@@ -118,10 +149,18 @@ bot.command('getid', async (ctx) => {
 bot.command('sethome', async (ctx) => {
   try {
     if (!isAdmin(ctx.from?.id)) {
+      await logsService.writeLog({
+        level: 'warn',
+        source: 'telegram',
+        event: 'sethome_denied',
+        message: 'Unauthorized /sethome',
+        ...logContext(ctx),
+      });
       return replyInContext(ctx, 'You are not allowed to use /sethome.');
     }
 
     const args = parseCommandArgs(ctx);
+    const ctxLog = logContext(ctx);
 
     if (args.length === 0 || args[0] === 'list') {
       const homes = await homesService.listHomes();
@@ -138,7 +177,7 @@ bot.command('sethome', async (ctx) => {
           `Usage: /sethome clear <feature>\nFeatures: ${Object.keys(FEATURES).join(', ')}`,
         );
       }
-      await homesService.clearHome(feature);
+      await homesService.clearHome(feature, ctxLog);
       return replyInContext(ctx, `Cleared home for <code>${feature}</code>.`, {
         parse_mode: 'HTML',
       });
@@ -158,7 +197,7 @@ bot.command('sethome', async (ctx) => {
     const title =
       ctx.chat.title || ctx.chat.username || ctx.chat.first_name || null;
 
-    await homesService.setHome(feature, { chatId, topicId, title });
+    await homesService.setHome(feature, { chatId, topicId, title }, ctxLog);
 
     const topicLabel = topicId ?? '(main)';
     return replyInContext(

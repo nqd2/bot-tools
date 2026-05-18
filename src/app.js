@@ -11,6 +11,7 @@ app.get('/', (_req, res) => {
   res.json({
     name: 'bot-tools',
     status: 'ok',
+    storage: 'mongodb',
     endpoints: {
       telegram: '/api/telegram',
       discord: '/api/discord',

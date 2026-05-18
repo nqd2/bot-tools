@@ -1,97 +1,71 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { getDbReady } = require('../db/mongodb');
 
-const DATA_PATH = path.join(process.cwd(), 'data', 'homes.json');
-const BLOB_PATHNAME = 'bot-tools/homes.json';
+const COLLECTION = 'homes';
 
-let cache = null;
+async function upsertHome(feature, data) {
+  const db = await getDbReady();
+  const doc = {
+    feature,
+    chatId: data.chatId,
+    topicId: data.topicId ?? null,
+    title: data.title ?? null,
+    updatedAt: new Date(),
+  };
 
-async function readFromBlob() {
-  const { list } = require('@vercel/blob');
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  const { blobs } = await list({ prefix: BLOB_PATHNAME, token });
-  const blob = blobs.find((item) => item.pathname === BLOB_PATHNAME);
+  await db.collection(COLLECTION).updateOne(
+    { feature },
+    { $set: doc },
+    { upsert: true },
+  );
 
-  if (!blob) {
-    return {};
-  }
-
-  const response = await fetch(blob.url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch homes blob: ${response.status}`);
-  }
-
-  return response.json();
+  return {
+    chatId: doc.chatId,
+    topicId: doc.topicId,
+    title: doc.title,
+    updatedAt: doc.updatedAt.toISOString(),
+  };
 }
 
-async function writeToBlob(data) {
-  const { put } = require('@vercel/blob');
-  await put(BLOB_PATHNAME, JSON.stringify(data, null, 2), {
-    access: 'private',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-  });
-}
-
-async function readFromFile() {
-  const raw = await fs.readFile(DATA_PATH, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function writeToFile(data) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`);
-}
-
-async function readAll() {
-  if (cache) {
-    return cache;
+async function getHome(feature) {
+  const db = await getDbReady();
+  const doc = await db.collection(COLLECTION).findOne({ feature });
+  if (!doc) {
+    return null;
   }
 
-  try {
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      cache = await readFromBlob();
-      return cache;
-    }
-
-    cache = await readFromFile();
-    return cache;
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      cache = {};
-      return cache;
-    }
-
-    console.warn('homes.storage read failed:', error.message);
-    cache = {};
-    return cache;
-  }
+  return {
+    chatId: doc.chatId,
+    topicId: doc.topicId ?? null,
+    title: doc.title ?? null,
+    updatedAt: doc.updatedAt?.toISOString?.() || doc.updatedAt,
+  };
 }
 
-async function writeAll(data) {
-  cache = data;
+async function getAllHomes() {
+  const db = await getDbReady();
+  const docs = await db.collection(COLLECTION).find({}).toArray();
+  const homes = {};
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    await writeToBlob(data);
-    return;
+  for (const doc of docs) {
+    homes[doc.feature] = {
+      chatId: doc.chatId,
+      topicId: doc.topicId ?? null,
+      title: doc.title ?? null,
+      updatedAt: doc.updatedAt?.toISOString?.() || doc.updatedAt,
+    };
   }
 
-  if (process.env.VERCEL) {
-    throw new Error(
-      'Vercel cần Blob store (BLOB_READ_WRITE_TOKEN). Project Settings → Storage → Create Blob → redeploy.',
-    );
-  }
-
-  await writeToFile(data);
+  return homes;
 }
 
-function clearCache() {
-  cache = null;
+async function deleteHome(feature) {
+  const db = await getDbReady();
+  await db.collection(COLLECTION).deleteOne({ feature });
 }
 
 module.exports = {
-  readAll,
-  writeAll,
-  clearCache,
+  upsertHome,
+  getHome,
+  getAllHomes,
+  deleteHome,
 };
