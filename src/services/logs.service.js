@@ -2,7 +2,15 @@ const { getDbReady } = require('../db/mongodb');
 
 const COLLECTION = 'logs';
 
-async function writeLog({
+function writeLog(payload) {
+  setImmediate(() => {
+    writeLogAsync(payload).catch((error) => {
+      console.error('Failed to write log:', error.message);
+    });
+  });
+}
+
+async function writeLogAsync({
   level = 'info',
   source,
   event,
@@ -11,21 +19,17 @@ async function writeLog({
   userId = null,
   chatId = null,
 }) {
-  try {
-    const db = await getDbReady();
-    await db.collection(COLLECTION).insertOne({
-      level,
-      source,
-      event,
-      message,
-      meta,
-      userId,
-      chatId,
-      createdAt: new Date(),
-    });
-  } catch (error) {
-    console.error('Failed to write log:', error.message);
-  }
+  const db = await getDbReady();
+  await db.collection(COLLECTION).insertOne({
+    level,
+    source,
+    event,
+    message,
+    meta,
+    userId,
+    chatId,
+    createdAt: new Date(),
+  });
 }
 
 module.exports = {

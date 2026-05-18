@@ -5,7 +5,7 @@ const logsService = require('./logs.service');
 async function setHome(feature, { chatId, topicId, title }, context = {}) {
   const home = await homesStorage.upsertHome(feature, { chatId, topicId, title });
 
-  await logsService.writeLog({
+  logsService.writeLog({
     level: 'info',
     source: 'telegram',
     event: 'sethome',
@@ -29,7 +29,7 @@ async function listHomes() {
 async function clearHome(feature, context = {}) {
   await homesStorage.deleteHome(feature);
 
-  await logsService.writeLog({
+  logsService.writeLog({
     level: 'info',
     source: 'telegram',
     event: 'sethome_clear',

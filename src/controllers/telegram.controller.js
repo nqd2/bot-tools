@@ -5,9 +5,11 @@ async function handleTelegramWebhook(req, res) {
   try {
     if (req.method === 'POST') {
       const update = req.body;
+      await telegramService.processUpdate(update);
+
       const text = update?.message?.text;
       if (text?.startsWith('/')) {
-        await logsService.writeLog({
+        logsService.writeLog({
           level: 'debug',
           source: 'telegram',
           event: 'webhook_command',
@@ -17,14 +19,14 @@ async function handleTelegramWebhook(req, res) {
           userId: update?.message?.from?.id ?? null,
         });
       }
-      await telegramService.processUpdate(update);
+
       return res.status(200).send('OK');
     }
 
     return res.status(200).send('Bot is running...');
   } catch (error) {
     console.error('Webhook Error:', error);
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'error',
       source: 'telegram',
       event: 'webhook_error',

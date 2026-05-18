@@ -16,6 +16,7 @@ module.exports = [
         clearInterval: 'readonly',
         fetch: 'readonly',
         Buffer: 'readonly',
+        setImmediate: 'readonly',
       },
     },
     rules: {

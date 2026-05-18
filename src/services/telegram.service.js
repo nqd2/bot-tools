@@ -3,8 +3,16 @@ const config = require('../config/env.config');
 const { FEATURES } = require('../config/features');
 const homesService = require('./homes.service');
 const logsService = require('./logs.service');
+const { formatMongoError } = require('../utils/mongo-error');
 
-const bot = new Telegraf(config.telegram.botToken);
+function createBot() {
+  if (!config.telegram.botToken) {
+    throw new Error('BOT_TOKEN is not configured on server');
+  }
+  return new Telegraf(config.telegram.botToken);
+}
+
+const bot = createBot();
 
 function isAdmin(userId) {
   const admins = config.telegram.adminIds;
@@ -95,14 +103,6 @@ function logContext(ctx) {
 
 bot.catch(async (error, ctx) => {
   console.error('Telegram bot error:', error);
-  await logsService.writeLog({
-    level: 'error',
-    source: 'telegram',
-    event: 'bot_error',
-    message: error.message,
-    meta: { stack: error.stack },
-    ...logContext(ctx),
-  });
   try {
     await replyInContext(
       ctx,
@@ -111,18 +111,26 @@ bot.catch(async (error, ctx) => {
   } catch {
     // cannot reply
   }
+  logsService.writeLog({
+    level: 'error',
+    source: 'telegram',
+    event: 'bot_error',
+    message: error.message,
+    meta: { stack: error.stack },
+    ...logContext(ctx),
+  });
 });
 
 bot.start(async (ctx) => {
   try {
-    await logsService.writeLog({
+    await replyInContext(ctx, formatStartReply(ctx), { parse_mode: 'HTML' });
+    logsService.writeLog({
       level: 'info',
       source: 'telegram',
       event: 'command_start',
       message: '/start',
       ...logContext(ctx),
     });
-    await replyInContext(ctx, formatStartReply(ctx), { parse_mode: 'HTML' });
   } catch (error) {
     console.error('/start error:', error);
     await replyInContext(ctx, `⚠️ Lỗi: ${error.message}`);
@@ -132,14 +140,14 @@ bot.start(async (ctx) => {
 bot.command('getid', async (ctx) => {
   try {
     const reply = formatIdReply(ctx);
-    await logsService.writeLog({
+    await replyInContext(ctx, reply);
+    logsService.writeLog({
       level: 'info',
       source: 'telegram',
       event: 'command_getid',
       message: reply,
       ...logContext(ctx),
     });
-    await replyInContext(ctx, reply);
   } catch (error) {
     console.error('/getid error:', error);
     await replyInContext(ctx, `⚠️ Lỗi: ${error.message}`);
@@ -149,14 +157,15 @@ bot.command('getid', async (ctx) => {
 bot.command('sethome', async (ctx) => {
   try {
     if (!isAdmin(ctx.from?.id)) {
-      await logsService.writeLog({
+      await replyInContext(ctx, 'You are not allowed to use /sethome.');
+      logsService.writeLog({
         level: 'warn',
         source: 'telegram',
         event: 'sethome_denied',
         message: 'Unauthorized /sethome',
         ...logContext(ctx),
       });
-      return replyInContext(ctx, 'You are not allowed to use /sethome.');
+      return;
     }
 
     const args = parseCommandArgs(ctx);
@@ -214,7 +223,7 @@ bot.command('sethome', async (ctx) => {
     console.error('/sethome error:', error);
     await replyInContext(
       ctx,
-      `⚠️ Không lưu được cấu hình.\n${error.message}`,
+      `⚠️ Không lưu được cấu hình.\n\n${formatMongoError(error)}`,
     );
   }
 });

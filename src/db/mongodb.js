@@ -3,17 +3,36 @@ const config = require('../config/env.config');
 
 const globalKey = '_botToolsMongo';
 
+function getClientOptions() {
+  return {
+    maxPoolSize: 10,
+    minPoolSize: 0,
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 10000,
+  };
+}
+
 async function getClient() {
   const uri = config.mongodb.uri;
   if (!uri) {
     throw new Error('MONGODB_URI is not configured');
   }
 
+  if (uri.includes('<') || uri.includes('>')) {
+    throw new Error(
+      'MONGODB_URI chứa <password> placeholder — thay bằng mật khẩu thật (URL-encoded).',
+    );
+  }
+
   if (!global[globalKey]) {
-    const client = new MongoClient(uri);
+    const client = new MongoClient(uri, getClientOptions());
     global[globalKey] = {
       client,
-      promise: client.connect(),
+      promise: client.connect().catch((error) => {
+        global[globalKey] = null;
+        throw error;
+      }),
     };
   }
 
@@ -39,8 +58,11 @@ let indexesReady = false;
 async function getDbReady() {
   const db = await getDb();
   if (!indexesReady) {
-    await ensureIndexes();
     indexesReady = true;
+    ensureIndexes().catch((error) => {
+      console.warn('MongoDB index setup failed:', error.message);
+      indexesReady = false;
+    });
   }
   return db;
 }

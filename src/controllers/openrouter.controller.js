@@ -27,7 +27,7 @@ function isAuthorized(req) {
 
 async function handleOpenRouterWebhook(req, res) {
   if (req.headers['x-test-connection'] === 'true') {
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'info',
       source: 'openrouter',
       event: 'test_connection',
@@ -37,7 +37,7 @@ async function handleOpenRouterWebhook(req, res) {
   }
 
   if (!isAuthorized(req)) {
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'warn',
       source: 'openrouter',
       event: 'unauthorized',
@@ -52,7 +52,7 @@ async function handleOpenRouterWebhook(req, res) {
 
   const openrouterHome = await homesService.getHome('openrouter');
   if (!openrouterHome) {
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'warn',
       source: 'openrouter',
       event: 'no_home',
@@ -69,7 +69,7 @@ async function handleOpenRouterWebhook(req, res) {
 
   try {
     const result = await openrouterService.processTracePayload(req.body);
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'info',
       source: 'openrouter',
       event: 'trace_received',
@@ -79,7 +79,7 @@ async function handleOpenRouterWebhook(req, res) {
     return res.json({ status: 'received', ...result });
   } catch (error) {
     console.error('OpenRouter webhook error:', error);
-    await logsService.writeLog({
+    logsService.writeLog({
       level: 'error',
       source: 'openrouter',
       event: 'process_error',
