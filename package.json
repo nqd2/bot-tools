@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/dev.js",
     "lint": "eslint .",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "webhook:set": "node scripts/set-telegram-webhook.js"
   },
   "dependencies": {
     "discord-interactions": "^4.0.0",

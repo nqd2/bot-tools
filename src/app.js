@@ -6,8 +6,8 @@ const app = express();
 
 app.use(express.json());
 
-app.all('/telegram', handleTelegramWebhook);
-app.post('/discord', handleDiscordWebhook);
+app.all(['/telegram', '/api/telegram'], handleTelegramWebhook);
+app.post(['/discord', '/api/discord'], handleDiscordWebhook);
 
 module.exports = app;
 

@@ -6,34 +6,43 @@ function setTelegramWebhook(baseUrl) {
   const token = config.telegram.botToken;
   if (!token) {
     console.warn('telegram.botToken is not set. Skipping Telegram setWebhook.');
-    return;
+    return Promise.resolve(false);
   }
 
-  const url = new URL(
+  const apiUrl = new URL(
     `/bot${token}/setWebhook`,
     'https://api.telegram.org',
   );
-  url.searchParams.set('url', `${baseUrl}/telegram`);
+  const webhookPath = process.env.WEBHOOK_PATH || '/api/telegram';
+  const webhookUrl = `${baseUrl.replace(/\/$/, '')}${webhookPath}`;
+  apiUrl.searchParams.set('url', webhookUrl);
 
-  https.get(url.toString(), (res) => {
-    let data = '';
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
-    res.on('end', () => {
-      try {
-        const json = JSON.parse(data);
-        if (json.ok) {
-          console.log('Telegram webhook set successfully:', url, JSON.stringify(json.result, null, 5));
-        } else {
-          console.error('Failed to set Telegram webhook:', url, json);
+  return new Promise((resolve) => {
+    https.get(apiUrl.toString(), (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.ok) {
+            console.log('Telegram webhook set:', webhookUrl);
+            console.log(JSON.stringify(json.result, null, 2));
+            resolve(true);
+          } else {
+            console.error('Failed to set Telegram webhook:', json);
+            resolve(false);
+          }
+        } catch (error) {
+          console.error('Error parsing Telegram setWebhook response:', error);
+          resolve(false);
         }
-      } catch (error) {
-        console.error('Error parsing Telegram setWebhook response:', error);
-      }
+      });
+    }).on('error', (error) => {
+      console.error('Error calling Telegram setWebhook:', error);
+      resolve(false);
     });
-  }).on('error', (error) => {
-    console.error('Error calling Telegram setWebhook:', error);
   });
 }
 
