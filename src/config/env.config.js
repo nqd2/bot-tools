@@ -6,6 +6,13 @@ const config = {
   port: Number(process.env.PORT) || 3000,
   telegram: {
     botToken: process.env.BOT_TOKEN || '',
+    adminIds: (process.env.BOT_ADMIN_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean),
+  },
+  openrouter: {
+    webhookSecret: process.env.OPENROUTER_WEBHOOK_SECRET || '',
   },
   discord: {
     token: process.env.DISCORD_TOKEN || '',

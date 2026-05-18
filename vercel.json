@@ -6,7 +6,10 @@
     }
   ],
   "routes": [
+    { "src": "/", "dest": "src/api/index.js" },
     { "src": "/api/telegram", "dest": "src/api/index.js" },
-    { "src": "/api/discord", "dest": "src/api/index.js" }
+    { "src": "/api/discord", "dest": "src/api/index.js" },
+    { "src": "/api/openrouter", "dest": "src/api/index.js" },
+    { "src": "/webhook", "dest": "src/api/index.js" }
   ]
 }
