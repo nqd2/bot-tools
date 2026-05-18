@@ -3,9 +3,11 @@ const { handleTelegramWebhook } = require('./controllers/telegram.controller');
 const { handleDiscordWebhook } = require('./controllers/discord.controller');
 const { handleOpenRouterWebhook } = require('./controllers/openrouter.controller');
 
+const { jsonBodyMiddleware } = require('./middleware/body.middleware');
+
 const app = express();
 
-app.use(express.json());
+app.use(jsonBodyMiddleware);
 
 app.get('/', (_req, res) => {
   res.json({

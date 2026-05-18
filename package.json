@@ -8,7 +8,9 @@
     "lint": "eslint .",
     "start": "node src/server.js",
     "webhook:set": "node scripts/set-telegram-webhook.js",
-    "db:test": "node scripts/test-mongodb.js"
+    "db:test": "node scripts/test-mongodb.js",
+    "logs:openrouter": "node scripts/check-openrouter-logs.js",
+    "trace:get": "node scripts/get-trace-payload.js"
   },
   "dependencies": {
     "discord-interactions": "^4.0.0",

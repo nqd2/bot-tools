@@ -51,6 +51,8 @@ async function ensureIndexes() {
   await db.collection('homes').createIndex({ feature: 1 }, { unique: true });
   await db.collection('logs').createIndex({ createdAt: -1 });
   await db.collection('logs').createIndex({ source: 1, event: 1, createdAt: -1 });
+  await db.collection('trace_payloads').createIndex({ createdAt: -1 });
+  await db.collection('trace_payloads').createIndex({ traceId: 1 });
 }
 
 let indexesReady = false;

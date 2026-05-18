@@ -25,7 +25,44 @@ function isAuthorized(req) {
   return false;
 }
 
+function spanCount(body) {
+  const spans = body?.resourceSpans || [];
+  let count = 0;
+  for (const rs of spans) {
+    for (const ss of rs?.scopeSpans || []) {
+      count += (ss?.spans || []).length;
+    }
+  }
+  return count;
+}
+
+async function processTraceAsync(body, meta) {
+  try {
+    const result = await openrouterService.processTracePayload(body);
+    logsService.writeLog({
+      level: result.spansProcessed > 0 ? 'info' : 'warn',
+      source: 'openrouter',
+      event: result.spansProcessed > 0 ? 'trace_received' : 'trace_empty',
+      message: result.spansProcessed > 0
+        ? `Sent ${result.spansProcessed} Telegram notification(s)`
+        : 'Webhook received but no spans parsed',
+      meta: { ...meta, ...result },
+    });
+  } catch (error) {
+    console.error('OpenRouter async process error:', error);
+    logsService.writeLog({
+      level: 'error',
+      source: 'openrouter',
+      event: 'process_error',
+      message: error.message,
+      meta: { ...meta, stack: error.stack },
+    });
+  }
+}
+
 async function handleOpenRouterWebhook(req, res) {
+  const contentLength = req.headers['content-length'];
+  const spans = spanCount(req.body);
   const bodyKeys = req.body && typeof req.body === 'object'
     ? Object.keys(req.body)
     : [];
@@ -36,6 +73,8 @@ async function handleOpenRouterWebhook(req, res) {
     event: 'webhook_hit',
     message: 'OpenRouter webhook request',
     meta: {
+      contentLength,
+      spanCount: spans,
       testConnection: req.headers['x-test-connection'] === 'true',
       bodyKeys,
       hasResourceSpans: Boolean(req.body?.resourceSpans?.length),
@@ -83,31 +122,14 @@ async function handleOpenRouterWebhook(req, res) {
     return res.status(400).json({ error: 'Invalid JSON' });
   }
 
-  try {
-    const result = await openrouterService.processTracePayload(req.body);
+  const meta = { contentLength, spanCount: spans };
 
-    logsService.writeLog({
-      level: result.spansProcessed > 0 ? 'info' : 'warn',
-      source: 'openrouter',
-      event: result.spansProcessed > 0 ? 'trace_received' : 'trace_empty',
-      message: result.spansProcessed > 0
-        ? `Sent ${result.spansProcessed} Telegram notification(s)`
-        : 'Webhook received but no spans parsed',
-      meta: result,
-    });
+  // Trả 200 ngay (Cursor trace rất lớn — xử lý nền tránh timeout)
+  res.json({ status: 'accepted', spanCount: spans });
 
-    return res.json({ status: 'received', ...result });
-  } catch (error) {
-    console.error('OpenRouter webhook error:', error);
-    logsService.writeLog({
-      level: 'error',
-      source: 'openrouter',
-      event: 'process_error',
-      message: error.message,
-      meta: { stack: error.stack },
-    });
-    return res.status(500).json({ error: 'Failed to process trace' });
-  }
+  setImmediate(() => {
+    processTraceAsync(req.body, meta);
+  });
 }
 
 module.exports = {

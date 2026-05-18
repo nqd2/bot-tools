@@ -111,10 +111,48 @@ function formatContentBlock(label, picked, maxChars) {
   ].join('\n');
 }
 
+function toPayloadObject(picked) {
+  if (!picked) {
+    return null;
+  }
+
+  const parsed = tryParseJson(picked.value);
+  if (parsed !== null && typeof parsed === 'object') {
+    return parsed;
+  }
+
+  return {
+    content: String(parsed),
+    _sourceKey: picked.key,
+  };
+}
+
+function serializedLength(value) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return String(value).length;
+  }
+}
+
+function isOversizedForTelegram(requestObj, responseObj, maxChars) {
+  const requestLen = serializedLength(requestObj);
+  const responseLen = serializedLength(responseObj);
+  return requestLen > maxChars
+    || responseLen > maxChars
+    || requestLen + responseLen > maxChars;
+}
+
 module.exports = {
   extractPrompt,
   extractResponse,
   formatContentBlock,
   formatMessages,
   truncate,
+  toPayloadObject,
+  serializedLength,
+  isOversizedForTelegram,
 };
